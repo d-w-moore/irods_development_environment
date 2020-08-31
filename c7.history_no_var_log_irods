@@ -26,7 +26,7 @@ git clone --recursive http://github.com/irods/irods
 git clone  http://github.com/irods/irods_client_icommands
 for x in *; do mkdir build__$x;done
 cd build__irods
-/opt/irods-externals/cmake3.11.4-0/bin/cmake ../irods -GNinja
+/opt/irods-externals/cmake3.11.4-0/bin/cmake ../irods -GNinja  -DCMAKE_BUILD_TYPE=Debug
 ninja package
 rpm -ivh irods-database-plugin-postgres-4.3.0-1.x86_64.rpm  irods-{dev,runtim,serve}*rpm
 cd ../build__irods_client_icommands

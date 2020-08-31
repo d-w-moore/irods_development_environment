@@ -17,8 +17,11 @@ RUN rpm --import https://packages.irods.org/irods-signing-key.asc && \
     yum update -y && \
     yum install -y 'irods-externals*' irods-runtime-4.2.0-1.x86_64 irods-icommands-4.2.0-1.x86_64 irods-server-4.2.0-1.x86_64 irods-database-plugin-postgres-4.2.0-1.x86_64
 
+# -- For debugging issue of rsyslog / iRODS connection
 ADD rsyslogd_conf.patch /
 RUN patch /etc/rsyslog.conf < /rsyslogd_conf.patch
+ADD c7.history_no_var_log_irods /tmp
+
 ADD ICAT.sql /
 ADD keep_alive.sh /keep_alive.sh
 RUN chmod +x /keep_alive.sh
