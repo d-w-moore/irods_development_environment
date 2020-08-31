@@ -32,16 +32,20 @@ cd ../build__irods_client_icommands
 ninja package
 rpm -ivh irods-icommands-4.3.0-1.x86_64.rpm 
 
-########## DB preparation
+########## Idempotent(?) DB preparation
 
-su - postgres -c "/usr/bin/pg_ctl initdb" >&2 || :                   ## --> If error, OK - this is already done
-su - postgres -c "/usr/bin/pg_ctl -D /var/lib/pgsql/data start"
-su - postgres -c "psql -f /ICAT.sql" >&2 || \
+su - postgres -c "/usr/bin/pg_ctl initdb >/dev/null 2>&1" || :                   ## --> If error, OK - this is already done
+su - postgres -c "/usr/bin/pg_ctl -D /var/lib/pgsql/data start >/dev/null 2>&1"
+sleep 10 # for DB async start
+su - postgres -c "psql -f /ICAT.sql >/dev/null 2>&1"  || \
 su - postgres -c "dropdb ICAT ; createdb ICAT"                       ## delete ICAT contents if necessary
 
 ###########
 
 rsyslogd
+sleep 2
 logger test-string
-sleep 5  # For PostgreSQL Async start
+grep test-string /var/log/messages || die "logger not working ?" 126 
+
+sleep 8  # For DB async start
 python /var/lib/irods/scripts/setup_irods.py  </var/lib/irods/packaging/localhost_setup_postgres.input 
