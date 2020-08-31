@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -e
 
 die() { echo "$1" >&2 ; [ -n "$2" ] && exit $((0+$2)) ; }
 
