@@ -2,12 +2,14 @@
 
 die() { echo "$1" >&2 ; [ -n "$2" ] && exit $((0+$2)) ; }
 
-##### Remove 4.2.x packages
+# _-_-_-_-_ Remove any pre-installed iRODS server or support for same
 
-yum remove irods-runtime
-rpm -qa irods\* | grep -v irods-externals 
+yum remove -y irods-runtime irods-devel
+if rpm -qa irods\* | grep -v irods-externals ; then
+  die "ERROR ** There are still iRODS server or related packages installed" 125
+fi
 
-##### Requirements to build master branch
+# _-_-_-_-_ Requirements to build master branch
 
 yum install -y wget sudo python python-psutil python-requests \
     python-jsonschema openssl openssl-devel super lsof \
@@ -16,7 +18,7 @@ yum install -y git ninja-build pam-devel krb5-devel fuse-devel \
     which libcurl-devel bzip2-devel libxml2-devel zlib-devel \
     python-devel make gcc-c++ help2man rpm-build
 
-##### Build and install iRODS
+# _-_-_-_-_ Build and install iRODS
 
 mkdir /root/github
 cd /root/github
@@ -24,15 +26,15 @@ git clone --recursive http://github.com/irods/irods
 git clone  http://github.com/irods/irods_client_icommands
 for x in *; do mkdir build__$x;done
 cd build__irods
-/opt/irods-externals/cmake3.11.4-0/bin/cmake ../irods -GNinja 
+/opt/irods-externals/cmake3.11.4-0/bin/cmake ../irods -GNinja
 ninja package
 rpm -ivh irods-database-plugin-postgres-4.3.0-1.x86_64.rpm  irods-{dev,runtim,serve}*rpm
 cd ../build__irods_client_icommands
 /opt/irods-externals/cmake3.11.4-0/bin/cmake ../irods_client_icommands/ -GNinja  -DCMAKE_BUILD_TYPE=Debug
 ninja package
-rpm -ivh irods-icommands-4.3.0-1.x86_64.rpm 
+rpm -ivh irods-icommands-4.3.0-1.x86_64.rpm
 
-########## Idempotent(?) DB preparation
+# _-_-_-_-_ Idempotent PostgreSQL preparation
 
 su - postgres -c "/usr/bin/pg_ctl initdb >/dev/null 2>&1" || :                   ## --> If error, OK - this is already done
 su - postgres -c "/usr/bin/pg_ctl -D /var/lib/pgsql/data start >/dev/null 2>&1"
@@ -40,12 +42,14 @@ sleep 10 # for DB async start
 su - postgres -c "psql -f /ICAT.sql >/dev/null 2>&1"  || \
 su - postgres -c "dropdb ICAT ; createdb ICAT"                       ## delete ICAT contents if necessary
 
-###########
+# _-_-_-_-_ Start rsyslog service
 
 rsyslogd
 sleep 2
 logger test-string
-grep test-string /var/log/messages || die "logger not working ?" 126 
+grep test-string /var/log/messages || die "ERROR ** Logger not working ?" 126
+
+# _-_-_-_-_ Configure and run the just-installed iRODS
 
 sleep 8  # For DB async start
-python /var/lib/irods/scripts/setup_irods.py  </var/lib/irods/packaging/localhost_setup_postgres.input 
+python /var/lib/irods/scripts/setup_irods.py  </var/lib/irods/packaging/localhost_setup_postgres.input
