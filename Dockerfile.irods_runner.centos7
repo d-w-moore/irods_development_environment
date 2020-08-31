@@ -6,7 +6,7 @@ FROM ${runner_base} as irods-runner
 
 RUN yum update -y && \
     yum install -y epel-release && \
-    yum install -y wget sudo rsyslog \
+    yum install -y wget sudo rsyslog patch \
                    python python-psutil python-requests python-jsonschema \
                    openssl openssl-devel super lsof postgresql-server unixODBC-devel libjson-perl
 
@@ -17,6 +17,8 @@ RUN rpm --import https://packages.irods.org/irods-signing-key.asc && \
     yum update -y && \
     yum install -y 'irods-externals*' irods-runtime-4.2.0-1.x86_64 irods-icommands-4.2.0-1.x86_64 irods-server-4.2.0-1.x86_64 irods-database-plugin-postgres-4.2.0-1.x86_64
 
+ADD rsyslogd_conf.patch /
+RUN patch /etc/rsyslog.conf < /rsyslogd_conf.patch
 ADD ICAT.sql /
 ADD keep_alive.sh /keep_alive.sh
 RUN chmod +x /keep_alive.sh

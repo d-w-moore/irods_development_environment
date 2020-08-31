@@ -1,0 +1,47 @@
+#!/bin/bash -x
+
+die() { echo "$1" >&2 ; [ -n "$2" ] && exit $((0+$2)) ; }
+
+##### Remove 4.2.x packages
+
+yum remove irods-runtime
+rpm -qa irods\* | grep -v irods-externals 
+
+##### Requirements to build master branch
+
+yum install -y wget sudo python python-psutil python-requests \
+    python-jsonschema openssl openssl-devel super lsof \
+    postgresql-server unixODBC-devel libjson-perl
+yum install -y git ninja-build pam-devel krb5-devel fuse-devel \
+    which libcurl-devel bzip2-devel libxml2-devel zlib-devel \
+    python-devel make gcc-c++ help2man rpm-build
+
+##### Build and install iRODS
+
+mkdir /root/github
+cd /root/github
+git clone --recursive http://github.com/irods/irods
+git clone  http://github.com/irods/irods_client_icommands
+for x in *; do mkdir build__$x;done
+cd build__irods
+/opt/irods-externals/cmake3.11.4-0/bin/cmake ../irods -GNinja 
+ninja package
+rpm -ivh irods-database-plugin-postgres-4.3.0-1.x86_64.rpm  irods-{dev,runtim,serve}*rpm
+cd ../build__irods_client_icommands
+/opt/irods-externals/cmake3.11.4-0/bin/cmake ../irods_client_icommands/ -GNinja  -DCMAKE_BUILD_TYPE=Debug
+ninja package
+rpm -ivh irods-icommands-4.3.0-1.x86_64.rpm 
+
+########## DB preparation
+
+su - postgres -c "/usr/bin/pg_ctl initdb" >&2 || :                   ## --> If error, OK - this is already done
+su - postgres -c "/usr/bin/pg_ctl -D /var/lib/pgsql/data start"
+su - postgres -c "psql -f /ICAT.sql" >&2 || \
+su - postgres -c "dropdb ICAT ; createdb ICAT"                       ## delete ICAT contents if necessary
+
+###########
+
+rsyslogd
+logger test-string
+sleep 5  # For PostgreSQL Async start
+python /var/lib/irods/scripts/setup_irods.py  </var/lib/irods/packaging/localhost_setup_postgres.input 
